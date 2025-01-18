@@ -1,0 +1,17 @@
+[
+    {
+        "name": "tumor",
+        "gt_labels": [1],
+        "pred_labels": [1]
+    },
+    {
+        "name": "normal gland",
+        "gt_labels": [2],
+        "pred_labels": [2]
+    },
+    {
+        "name": "optic nerve",
+        "gt_labels": [5],
+        "pred_labels": [3]
+    }
+]  
