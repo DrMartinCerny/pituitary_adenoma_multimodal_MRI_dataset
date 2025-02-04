@@ -26,10 +26,23 @@ Run the following command to download the dataset to the previously defined data
 ### 3. Evaluate Segmentation Accuracy
 To evaluate the segmentation accuracy, use the following command:
 
-```python script_name.py <evaluated_segmentation_name> <label_mapping_file>```
+```python dice.py <evaluated_segmentation_name> <label_mapping_file>```
 
 *Example:*
 
 ```python dice.py predictionCerny2025 label_mapping/label_mapping_cerny_2025.json```
 
 The label mapping file is required to account for different class labels in different model outputs.
+
+---
+
+## Dataset Creation
+
+For reproducibility purposes, this repository contains scripts used to create this dataset
+
+### 1. Convert the dataset from DICOM to NIfTI
+This scripts requires that `source.tsv` is located in the previously specified dataset location and contains paths and series numbers (dicom tag 0020|0011) of series corresponding to respective imaging sequences.
+
+```python convert_to_nifti.py```
+
+Running this script will generate corresponding .nii.gz files and respective .json sidecars
