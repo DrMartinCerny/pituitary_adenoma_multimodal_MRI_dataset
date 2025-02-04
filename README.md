@@ -46,3 +46,8 @@ This scripts requires that `source.tsv` is located in the previously specified d
 ```python convert_to_nifti.py```
 
 Running this script will generate corresponding .nii.gz files and respective .json sidecars
+
+### 2. Defacing
+Facial features were removed from all 3D Navigation scans using `pydeface`. Following script will itterate over all subjects and deface them:
+
+```python deface.py```
