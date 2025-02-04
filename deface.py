@@ -16,7 +16,7 @@ nii_files = glob.glob(search_pattern)
 for nii_file in nii_files:
     print(f"Defacing: {nii_file}")
     try:
-        subprocess.run(["python3", "-m", "pydeface", nii_file, "--cost", "corratio", "--force", "--applyto", nii_file], check=True)
+        subprocess.run(["pydeface", nii_file, "--cost", "corratio", "--force", "--applyto", nii_file], check=True)
         print(f"Successfully defaced: {nii_file}")
     except subprocess.CalledProcessError as e:
         print(f"Error defacing {nii_file}: {e}")
