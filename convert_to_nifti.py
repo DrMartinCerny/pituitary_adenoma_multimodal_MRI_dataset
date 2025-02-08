@@ -2,6 +2,7 @@ import pandas as pd
 import SimpleITK as sitk
 import os
 import json
+import numpy as np
 
 # Load dataset location
 with open('dataset_location.txt', "r") as f:
@@ -65,5 +66,19 @@ for _, participant in participants.iterrows():
             # Write metadata to JSON
             with open(json_filename, 'w') as json_file:
                 json.dump(bids_metadata, json_file, indent=4)
+
+            # Create an empty segmentation mask for defacing if the sequence is CE3DNavigation_T1w
+            if sequence == "CE3DNavigation_T1w":
+                mask_folder = os.path.join(dataset_location, 'derivatives', 'defaceMasks', sub_id, 'anat')
+                mask_filename = os.path.join(mask_folder, f"{sub_id}_acq-CE3DNavigation_desc-defacemask.nii.gz")
+                os.makedirs(mask_folder, exist_ok=True)
+
+                # Create an empty mask with the same shape and spatial properties as the original image
+                mask_array = np.zeros(sitk.GetArrayFromImage(image).shape, dtype=np.uint8)
+                mask_image = sitk.GetImageFromArray(mask_array)
+                mask_image.CopyInformation(image)  # Ensure the mask has the same coordinate space
+                
+                # Save the mask
+                sitk.WriteImage(mask_image, mask_filename)
             
             print(f"Processed: {sub_id}, {sequence}")

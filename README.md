@@ -48,6 +48,6 @@ This scripts requires that `source.tsv` is located in the previously specified d
 Running this script will generate corresponding .nii.gz files and respective .json sidecars
 
 ### 2. Defacing
-Facial features were removed from all 3D Navigation scans using `pydeface`. Following script will itterate over all subjects and deface them:
+Facial features were removed from all 3D Navigation scans. In the previous step, empty defacing masks have been generated in `/derivatives/defaceMasks/`. Running the following script will apply them to the dataset:
 
 ```python deface.py```

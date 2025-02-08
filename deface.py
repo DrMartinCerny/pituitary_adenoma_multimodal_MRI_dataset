@@ -1,24 +1,46 @@
-import os
 import glob
-import subprocess
+import SimpleITK as sitk
+import os
+import numpy as np
 
-# Read dataset location from file
-with open("dataset_location.txt", "r") as f:
-    base_path = f.read().strip()
+# Load dataset location
+with open('dataset_location.txt', "r") as f:
+    dataset_location = f.read().strip()
 
-# Construct the search pattern
-search_pattern = os.path.join(base_path, "sub-*", "anat", "sub-*_acq-CEAxNavi_T1w.nii.gz")
+# Iterate over all anatomical images
+for image_path in glob.glob(os.path.join(dataset_location, 'sub-*', 'anat', 'sub-*_acq-CE3DNavigation_T1w.nii.gz')):
+    print(f"Processing: {image_path}")
 
-# Find all matching files
-nii_files = glob.glob(search_pattern)
+    # Construct the expected defacing mask path
+    sub_id = os.path.basename(image_path).split("_")[0]  # Extract subject ID
+    mask_path = os.path.join(dataset_location, 'derivatives', 'defaceMasks', sub_id, 'anat', f"{sub_id}_acq-CE3DNavigation_desc-defacemask.nii.gz")
 
-# Loop through each file and deface in place
-for nii_file in nii_files:
-    print(f"Defacing: {nii_file}")
-    try:
-        subprocess.run(["pydeface", nii_file, "--cost", "corratio", "--force", "--applyto", nii_file], check=True)
-        print(f"Successfully defaced: {nii_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error defacing {nii_file}: {e}")
+    # Check if the mask exists
+    if not os.path.exists(mask_path):
+        print(f"Skipping {image_path} (No defacing mask found)")
+        continue
 
-print("Batch defacing complete!")
+    # Load the anatomical image
+    image = sitk.ReadImage(image_path)
+    image_array = sitk.GetArrayFromImage(image)
+
+    # Load the defacing mask
+    mask = sitk.ReadImage(mask_path)
+    mask_array = sitk.GetArrayFromImage(mask)
+
+    # Ensure the mask and image have the same shape
+    if mask_array.shape != image_array.shape:
+        print(f"Skipping {image_path} (Mask and image shape mismatch)")
+        continue
+
+    # Apply the mask (set masked regions to 0)
+    defaced_array = np.where(mask_array > 0, 0, image_array)
+
+    # Convert back to SimpleITK image
+    defaced_image = sitk.GetImageFromArray(defaced_array)
+    defaced_image.CopyInformation(image)  # Preserve spatial metadata
+
+    # Save the defaced image, overwriting the original
+    sitk.WriteImage(defaced_image, image_path)
+
+    print(f"Defaced and saved: {image_path}")
