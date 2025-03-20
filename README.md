@@ -26,13 +26,13 @@ Run the following command to download the dataset to the previously defined data
 ### 3. Evaluate Segmentation Accuracy
 To evaluate the segmentation accuracy, use the following command:
 
-```python dice.py <evaluated_segmentation_name> <label_mapping_file>```
+```python dice.py <evaluated_segmentation_name> <label_mapping_file> [--keyframesOnly]```
 
 *Example:*
 
 ```python dice.py predictionCerny2025 label_mapping/label_mapping_cerny_2025.json```
 
-The label mapping file is required to account for different class labels in different model outputs.
+The label mapping file is required to account for different class labels in different model outputs. The `--keyframesOnly` flag will limit the evaluation extent to keyframes only.
 
 ---
 

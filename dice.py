@@ -47,11 +47,12 @@ def calculate_iou(gt, pred):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python dice.py <evaluated segmentation name> <label mapping file>")
+        print("Usage: python dice.py <evaluated segmentation name> <label mapping file> [--keyframesOnly]")
         sys.exit(1)
 
     evaluated_segmentation = sys.argv[1]
     label_mapping_file = sys.argv[2]
+    keyframes_only = '--keyframesOnly' in sys.argv
 
     # Load dataset location
     with open('dataset_location.txt', "r") as f:
@@ -61,56 +62,75 @@ def main():
     with open(label_mapping_file, "r") as f:
         label_mapping = json.load(f)
 
-    # Initialize variables
-    count_valid_dsc = 0  # Counter for valid calculations
-
-    # Dictionary to store per-label metrics data
-    label_metrics_data = {label['name']: {'total_dsc': 0, 'total_hausdorff': 0, 'total_iou': 0, 'count': 0} for label in label_mapping}
-
-    # Find all subjects for evaluation
+    count_valid_dsc = 0
+    label_metrics_data = {label['name']: {'dsc': [], 'hausdorff': [], 'iou': []} for label in label_mapping}
     subjects = sorted(glob.glob(os.path.join(dataset_location, 'derivatives', 'segmentations', '*')))
     print(f"There are {len(subjects)} found for evaluation")
     
-    # Iterate over all subjects in the dataset
     for subject in subjects:
         subjectID = subject.split('sub-')[-1]
-        print(f"SUBJECT {subjectID}")
-
-        # Load ground truth and prediction images
-        ground_truth = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(subject, 'anat', f'sub-{subjectID}_label-groundTruth.nii.gz')))
-        prediction = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(subject, 'anat', f'sub-{subjectID}_label-{evaluated_segmentation}.nii.gz')))
-
-        # Calculate metrics for each label in the mapping
-        for label in label_mapping:
-            gt_mask = np.isin(ground_truth, label['gt_labels'])
-            pred_mask = np.isin(prediction, label['pred_labels'])
-
-            dice_coefficient = calculate_dice_coefficient(gt_mask, pred_mask)
-            hausdorff_distance = calculate_hausdorff_distance(gt_mask, pred_mask)
-            iou = calculate_iou(gt_mask, pred_mask)
-
-            if dice_coefficient is not None:
-                count_valid_dsc += 1
-                # Update per-label data
-                label_metrics_data[label['name']]['total_dsc'] += dice_coefficient
-                label_metrics_data[label['name']]['total_hausdorff'] += hausdorff_distance if hausdorff_distance is not None else 0
-                label_metrics_data[label['name']]['total_iou'] += iou if iou is not None else 0
-                label_metrics_data[label['name']]['count'] += 1
-
-            print(f" {label['name']}: DSC = {f'{dice_coefficient:.4f}' if dice_coefficient is not None else 'N/A'}, "
-                f"Hausdorff = {f'{hausdorff_distance:.4f}' if hausdorff_distance is not None else 'N/A'}, "
-                f"IoU = {f'{iou:.4f}' if iou is not None else 'N/A'}")
-
-    # Display per-label metrics data
+        gt_path = os.path.join(subject, 'anat', f'sub-{subjectID}_label-groundTruth.nii.gz')
+        pred_path = os.path.join(subject, 'anat', f'sub-{subjectID}_label-{evaluated_segmentation}.nii.gz')
+        json_path = os.path.join(subject, 'anat', f'sub-{subjectID}_label-groundTruth.json')
+        
+        if os.path.exists(gt_path) and os.path.exists(pred_path):
+            print(f"SUBJECT {subjectID}")
+            ground_truth = sitk.GetArrayFromImage(sitk.ReadImage(gt_path))
+            prediction = sitk.GetArrayFromImage(sitk.ReadImage(pred_path))
+            
+            if keyframes_only and os.path.exists(json_path):
+                with open(json_path, "r") as f:
+                    json_sidecar = json.load(f)
+                ground_truth = ground_truth[json_sidecar['KeyFrames']]
+                prediction = prediction[json_sidecar['KeyFrames']]
+            
+            for label in label_mapping:
+                gt_mask = np.isin(ground_truth, label['gt_labels'])
+                pred_mask = np.isin(prediction, label['pred_labels'])
+                
+                dice_coefficient = calculate_dice_coefficient(gt_mask, pred_mask)
+                hausdorff_distance = calculate_hausdorff_distance(gt_mask, pred_mask)
+                iou = calculate_iou(gt_mask, pred_mask)
+                
+                if dice_coefficient is not None:
+                    count_valid_dsc += 1
+                    label_metrics_data[label['name']]['dsc'].append(dice_coefficient)
+                    if hausdorff_distance is not None:
+                        label_metrics_data[label['name']]['hausdorff'].append(hausdorff_distance)
+                    if iou is not None:
+                        label_metrics_data[label['name']]['iou'].append(iou)
+                
+                print(f" {label['name']}: DSC = {f'{dice_coefficient:.3f}' if dice_coefficient is not None else 'N/A'}, "
+                      f"Hausdorff = {f'{hausdorff_distance:.3f}' if hausdorff_distance is not None else 'N/A'}, "
+                      f"IoU = {f'{iou:.3f}' if iou is not None else 'N/A'}")
+    
     print("\nPer-Label Metrics:")
     for label_name, data in label_metrics_data.items():
-        label_average_dsc = data['total_dsc'] / data['count'] if data['count'] > 0 else None
-        label_average_hausdorff = data['total_hausdorff'] / data['count'] if data['count'] > 0 else None
-        label_average_iou = data['total_iou'] / data['count'] if data['count'] > 0 else None
+        if data['dsc']:
+            avg_dsc = np.mean(data['dsc'])
+            std_dsc = np.std(data['dsc'])
+        else:
+            avg_dsc = None
+            std_dsc = None
+        
+        if data['hausdorff']:
+            avg_hausdorff = np.mean(data['hausdorff'])
+            std_hausdorff = np.std(data['hausdorff'])
+        else:
+            avg_hausdorff = None
+            std_hausdorff = None
+        
+        if data['iou']:
+            avg_iou = np.mean(data['iou'])
+            std_iou = np.std(data['iou'])
+        else:
+            avg_iou = None
+            std_iou = None
 
-        print(f" {label_name}: Average DSC = {f'{label_average_dsc:.4f}' if label_average_dsc is not None else 'N/A'}, "
-            f"Average Hausdorff = {f'{label_average_hausdorff:.4f}' if label_average_hausdorff is not None else 'N/A'}, "
-            f"Average IoU = {f'{label_average_iou:.4f}' if label_average_iou is not None else 'N/A'}")
+        print(f" {label_name}: "
+              f"Average DSC = {f'{avg_dsc:.3f} ± {std_dsc:.3f}' if avg_dsc is not None else 'N/A'}, "
+              f"Average Hausdorff = {f'{avg_hausdorff:.3f} ± {std_hausdorff:.3f}' if avg_hausdorff is not None else 'N/A'}, "
+              f"Average IoU = {f'{avg_iou:.3f} ± {std_iou:.3f}' if avg_iou is not None else 'N/A'}")
 
 if __name__ == "__main__":
     main()
