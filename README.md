@@ -1,13 +1,40 @@
-# Code Repository for Open-Access Multimodal MRI Dataset of Pituitary Adenoma  
+# Code Repository: Open-Access Multimodal MRI Dataset of Pituitary Adenoma
 
-This repository accompanies the article:  
+This repository accompanies the article:
 
-**Černý, Valošek, Májovský, Sedlák et al.**, *Open-access multimodal MRI dataset of pituitary adenoma*  
+**Černý, Valošek, Májovský, Sedlák et al.**  
+*Open-access multimodal MRI dataset of pituitary adenoma*  
+[Under review in *Scientific Data*]
 
-All code written by Martin Černý
+All code written and maintained by **Martin Černý**.
 
-If you use this dataset, please cite the corresponding article:  
-`{article citation}`  
+If you use this dataset or code, please cite the corresponding article:
+
+> Černý M, Valošek J, Májovský M, Sedlák V, et al. *An open-access multiparametric MRI dataset of pituitary adenomas with expert annotations and benchmark segmentation models*. *Scientific Data*. [Under review].
+
+The dataset can be downloaded from:
+
+[github.com/DrMartinCerny/pituitary_adenoma_multimodal_MRI_dataset](https://github.com/DrMartinCerny/pituitary_adenoma_multimodal_MRI_dataset)
+
+The dataset provides a comprehensive, BIDS-organized collection of **multiparametric MRI scans** and **expert-validated segmentations** from 50 patients with pituitary adenomas. It is designed to support development and evaluation of segmentation models targeting challenging, pathologically altered sellar anatomy.
+
+The dataset includes:
+- Up to 10 MRI sequences per subject
+- Ground truth annotations for 5 anatomical structures
+- Outputs from 5 segmentation models
+- Full benchmarking metrics
+
+---
+
+## Repository Contents
+
+This repository contains all scripts used for:
+- BIDS-compliant data conversion from raw DICOM
+- Manual and automated segmentation processing
+- Benchmark model evaluation (DSC, HD, IoU)
+- Defacing of navigation scans
+
+It is intended to support reproducible benchmarking and downstream ML workflows.
 
 ---
 
@@ -18,12 +45,7 @@ Specify the dataset location in the `dataset_location.txt` file. The default loc
 
 ```data/```
 
-### 2. Download the Dataset  
-Run the following command to download the dataset to the previously defined dataset location:
-
-```python download.py```
-
-### 3. Evaluate Segmentation Accuracy
+### 2. Evaluate Segmentation Accuracy
 To evaluate the segmentation accuracy, use the following command:
 
 ```python dice.py <evaluated_segmentation_name> <label_mapping_file> [--keyframesOnly]```
@@ -51,3 +73,10 @@ Running this script will generate corresponding .nii.gz files and respective .js
 Facial features were removed from all 3D Navigation scans. In the previous step, empty defacing masks have been generated in `/derivatives/defaceMasks/`. Running the following script will apply them to the dataset:
 
 ```python deface.py```
+
+---
+
+### License
+
+Code in this repository is licensed under the MIT License.
+The dataset is licensed under CC BY-NC 4.0 – non-commercial use only, with attribution.
