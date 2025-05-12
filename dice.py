@@ -1,6 +1,7 @@
 import json
 import SimpleITK as sitk
 import numpy as np
+import pandas as pd
 from scipy.spatial import cKDTree
 import glob
 import os
@@ -8,7 +9,6 @@ import sys
 
 def calculate_dice_coefficient(gt, pred):
     if np.sum(gt) == 0:
-        # Skip evaluation if the label does not exist in ground truth
         return None
     intersection = np.sum(gt & pred)
     union = np.sum(gt) + np.sum(pred)
@@ -18,27 +18,24 @@ def calculate_dice_coefficient(gt, pred):
 def calculate_hausdorff_distance(gt, pred):
     if np.sum(gt) == 0 or np.sum(pred) == 0:
         return None
-
+    
     gt_points = np.argwhere(gt)
     pred_points = np.argwhere(pred)
-
+    
     if gt_points.shape[0] == 0 or pred_points.shape[0] == 0:
         return None
-
-    # Build KD-trees
+    
     gt_tree = cKDTree(gt_points)
     pred_tree = cKDTree(pred_points)
-
-    # Compute Hausdorff distances using nearest neighbor search
+    
     gt_to_pred_distances, _ = pred_tree.query(gt_points)
     pred_to_gt_distances, _ = gt_tree.query(pred_points)
-
+    
     hausdorff_distance = max(np.max(gt_to_pred_distances), np.max(pred_to_gt_distances))
     return hausdorff_distance
 
 def calculate_iou(gt, pred):
     if np.sum(gt) == 0:
-        # Skip evaluation if the label does not exist in ground truth
         return None
     intersection = np.sum(gt & pred)
     union = np.sum(gt | pred)
@@ -49,20 +46,18 @@ def main():
     if len(sys.argv) < 3:
         print("Usage: python dice.py <evaluated segmentation name> <label mapping file> [--keyframesOnly]")
         sys.exit(1)
-
+    
     evaluated_segmentation = sys.argv[1]
     label_mapping_file = sys.argv[2]
     keyframes_only = '--keyframesOnly' in sys.argv
 
-    # Load dataset location
     with open('dataset_location.txt', "r") as f:
         dataset_location = f.read().strip()
-
-    # Load label mapping
+    
     with open(label_mapping_file, "r") as f:
         label_mapping = json.load(f)
 
-    count_valid_dsc = 0
+    tumor_metrics = {'subjectID': [], 'DSC': [], 'Hausdorff': [], 'IoU': []}
     label_metrics_data = {label['name']: {'dsc': [], 'hausdorff': [], 'iou': []} for label in label_mapping}
     subjects = sorted(glob.glob(os.path.join(dataset_location, 'derivatives', 'segmentations', '*')))
     print(f"There are {len(subjects)} found for evaluation")
@@ -92,37 +87,35 @@ def main():
                 hausdorff_distance = calculate_hausdorff_distance(gt_mask, pred_mask)
                 iou = calculate_iou(gt_mask, pred_mask)
                 
-                if dice_coefficient is not None:
-                    count_valid_dsc += 1
-                    label_metrics_data[label['name']]['dsc'].append(dice_coefficient)
-                    if hausdorff_distance is not None:
-                        label_metrics_data[label['name']]['hausdorff'].append(hausdorff_distance)
-                    if iou is not None:
-                        label_metrics_data[label['name']]['iou'].append(iou)
+                label_metrics_data[label['name']]['dsc'].append(dice_coefficient if dice_coefficient is not None else np.nan)
+                label_metrics_data[label['name']]['hausdorff'].append(hausdorff_distance if hausdorff_distance is not None else np.nan)
+                label_metrics_data[label['name']]['iou'].append(iou if iou is not None else np.nan)
                 
-                print(f" {label['name']}: DSC = {f'{dice_coefficient:.3f}' if dice_coefficient is not None else 'N/A'}, "
-                      f"Hausdorff = {f'{hausdorff_distance:.3f}' if hausdorff_distance is not None else 'N/A'}, "
-                      f"IoU = {f'{iou:.3f}' if iou is not None else 'N/A'}")
+                if label['name'] == 'tumor':
+                    tumor_metrics['subjectID'].append(subjectID)
+                    tumor_metrics['DSC'].append(dice_coefficient if dice_coefficient is not None else np.nan)
+                    tumor_metrics['Hausdorff'].append(hausdorff_distance if hausdorff_distance is not None else np.nan)
+                    tumor_metrics['IoU'].append(iou if iou is not None else np.nan)
     
     print("\nPer-Label Metrics:")
     for label_name, data in label_metrics_data.items():
         if data['dsc']:
-            avg_dsc = np.mean(data['dsc'])
-            std_dsc = np.std(data['dsc'])
+            avg_dsc = np.nanmean(data['dsc'])
+            std_dsc = np.nanstd(data['dsc'])
         else:
             avg_dsc = None
             std_dsc = None
         
         if data['hausdorff']:
-            avg_hausdorff = np.mean(data['hausdorff'])
-            std_hausdorff = np.std(data['hausdorff'])
+            avg_hausdorff = np.nanmean(data['hausdorff'])
+            std_hausdorff = np.nanstd(data['hausdorff'])
         else:
             avg_hausdorff = None
             std_hausdorff = None
         
         if data['iou']:
-            avg_iou = np.mean(data['iou'])
-            std_iou = np.std(data['iou'])
+            avg_iou = np.nanmean(data['iou'])
+            std_iou = np.nanstd(data['iou'])
         else:
             avg_iou = None
             std_iou = None
@@ -131,6 +124,12 @@ def main():
               f"Average DSC = {f'{avg_dsc:.3f} ± {std_dsc:.3f}' if avg_dsc is not None else 'N/A'}, "
               f"Average Hausdorff = {f'{avg_hausdorff:.3f} ± {std_hausdorff:.3f}' if avg_hausdorff is not None else 'N/A'}, "
               f"Average IoU = {f'{avg_iou:.3f} ± {std_iou:.3f}' if avg_iou is not None else 'N/A'}")
+
+    # Save results to an Excel file
+    output_filename = f"evaluated_segmentation_{'keyframes' if keyframes_only else 'full'}.xlsx"
+    df = pd.DataFrame(tumor_metrics)
+    df.to_excel(output_filename, index=False)
+    print(f"Saved tumor evaluation metrics to {output_filename}")
 
 if __name__ == "__main__":
     main()
