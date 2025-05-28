@@ -14,7 +14,7 @@ If you use this dataset or code, please cite the corresponding article:
 
 The dataset can be downloaded from:
 
-[github.com/DrMartinCerny/pituitary_adenoma_multimodal_MRI_dataset](https://github.com/DrMartinCerny/pituitary_adenoma_multimodal_MRI_dataset)
+[https://openneuro.org/datasets/ds006248](https://openneuro.org/datasets/ds006248)
 
 The dataset provides a comprehensive, BIDS-organized collection of **multiparametric MRI scans** and **expert-validated segmentations** from 50 patients with pituitary adenomas. It is designed to support development and evaluation of segmentation models targeting challenging, pathologically altered sellar anatomy.
 
